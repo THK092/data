@@ -4,45 +4,46 @@ import pandas as pd
 import plotly.graph_objs as go
 from datetime import datetime, timedelta
 
-# 앱 제목
-st.title("🌎 글로벌 시가총액 TOP 10 기업 주가 시각화")
-st.markdown("데이터 출처: Yahoo Finance (야후 파이낸스)")
+st.title("🌍 글로벌 시가총액 TOP 10 기업 주가 시각화")
+st.markdown("데이터 출처: Yahoo Finance")
 
-# 시가총액 기준 상위 10개 기업
+# 수정된 티커 목록
 companies = {
     'Apple': 'AAPL',
     'Microsoft': 'MSFT',
-    'Saudi Aramco': '2222.SR',
+    'Saudi Aramco': '2222.SR',  # 주의: 일부 지역에서는 차단될 수 있음
     'Alphabet (Google)': 'GOOGL',
     'Amazon': 'AMZN',
     'Nvidia': 'NVDA',
     'Meta (Facebook)': 'META',
-    'Berkshire Hathaway': 'BRK-B',
+    'Berkshire Hathaway': 'BRK.B',  # 수정됨
     'Tesla': 'TSLA',
     'TSMC': 'TSM'
 }
 
-# 날짜 선택
+# 날짜 범위 설정
 end_date = datetime.today()
 start_date = end_date - timedelta(days=365)
 
-# 사용자 선택 옵션
+# 기업 선택
 selected_companies = st.multiselect(
     "📈 시각화할 기업을 선택하세요",
     options=list(companies.keys()),
     default=['Apple', 'Microsoft', 'Nvidia']
 )
 
-# 데이터 다운로드 및 시각화
+# 시각화
 if selected_companies:
     fig = go.Figure()
     for name in selected_companies:
         ticker = companies[name]
-        try:
-            data = yf.download(ticker, start=start_date, end=end_date)
-            fig.add_trace(go.Scatter(x=data.index, y=data['Adj Close'], mode='lines', name=name))
-        except:
-            st.warning(f"{name}의 데이터를 가져오는 데 실패했습니다.")
+        data = yf.download(ticker, start=start_date, end=end_date)
+
+        if data.empty:
+            st.warning(f"⚠️ {name}의 데이터를 가져올 수 없습니다.")
+            continue
+
+        fig.add_trace(go.Scatter(x=data.index, y=data['Adj Close'], mode='lines', name=name))
 
     fig.update_layout(
         title="📊 글로벌 시가총액 상위 기업 주가 (최근 1년)",
