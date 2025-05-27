@@ -1,100 +1,69 @@
 import streamlit as st
+import requests
 
-# 영화 데이터: 영화명 -> 감독, 배우 리스트, 간단 줄거리(옵션)
-movies = {
-    "인셉션": {
-        "director": "크리스토퍼 놀란",
-        "actors": ["레오나르도 디카프리오", "조셉 고든-레빗", "엘런 페이지"],
-        "summary": "꿈 속 꿈을 탐험하는 이야기."
-    },
-    "다크 나이트": {
-        "director": "크리스토퍼 놀란",
-        "actors": ["크리스찬 베일", "히스 레저", "애런 에크하트"],
-        "summary": "배트맨과 조커의 대결."
-    },
-    "셔터 아일랜드": {
-        "director": "마틴 스코세이지",
-        "actors": ["레오나르도 디카프리오", "마크 러팔로", "베니치오 델 토로"],
-        "summary": "정신병원에서 벌어진 미스터리."
-    },
-    "어벤져스": {
-        "director": "조스 웨던",
-        "actors": ["로버트 다우니 주니어", "크리스 에반스", "스칼렛 요한슨"],
-        "summary": "히어로들이 모여 세상을 구한다."
-    },
-    "아이언맨": {
-        "director": "존 파브로",
-        "actors": ["로버트 다우니 주니어", "그윈네스 팰트로", "테렌스 하워드"],
-        "summary": "억만장자 발명가의 슈트 이야기."
-    },
-    "토르": {
-        "director": "케네스 브래너",
-        "actors": ["크리스 헴스워스", "톰 히들스턴", "나탈리 포트만"],
-        "summary": "천둥의 신 토르의 모험."
-    },
-    "인터스텔라": {
-        "director": "크리스토퍼 놀란",
-        "actors": ["매튜 맥커너히", "앤 해서웨이", "제시카 차스테인"],
-        "summary": "우주 탐사를 통한 인류 구원."
-    },
-    "라라랜드": {
-        "director": "다미엔 차젤레",
-        "actors": ["라이언 고슬링", "엠마 스톤"],
-        "summary": "재즈 음악가와 배우의 사랑 이야기."
-    },
-    "기생충": {
-        "director": "봉준호",
-        "actors": ["송강호", "이선균", "조여정"],
-        "summary": "계층 간의 충돌과 반전."
-    },
-    "겨울왕국": {
-        "director": "크리스 벅",
-        "actors": ["이디나 멘젤", "크리스틴 벨"],
-        "summary": "자매의 사랑과 마법 이야기."
-    },
-    # 여기에 50~100개 더 추가 가능 (용량 제한 주의)
-}
+API_KEY = "여기에_본인_TMDB_API_KEY_입력"
 
-def recommend(movie_title):
-    if movie_title not in movies:
-        return None
-    director = movies[movie_title]["director"]
-    actors = movies[movie_title]["actors"]
+def search_movie(query):
+    url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={query}&language=ko-KR"
+    response = requests.get(url)
+    results = response.json().get("results")
+    return results
 
-    recommendations = []
-    for m, info in movies.items():
-        if m == movie_title:
-            continue
-        # 감독이 같거나 배우가 하나라도 겹치면 추천
-        if info["director"] == director or any(actor in info["actors"] for actor in actors):
-            recommendations.append({
-                "title": m,
-                "director": info["director"],
-                "actors": info["actors"],
-                "summary": info.get("summary", "")
-            })
-    return recommendations
+def get_movie_credits(movie_id):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}/credits?api_key={API_KEY}&language=ko-KR"
+    response = requests.get(url)
+    return response.json()
+
+def get_recommendations_by_person(person_id):
+    url = f"https://api.themoviedb.org/3/person/{person_id}/movie_credits?api_key={API_KEY}&language=ko-KR"
+    response = requests.get(url)
+    return response.json()
 
 def main():
-    st.title("🎬 풍부한 정보가 담긴 영화 추천 앱")
-    st.write("영화 제목 입력 시 감독 및 배우가 겹치는 다른 작품과 간단 줄거리를 추천합니다.")
+    st.title("🎬 TMDb 기반 영화 추천 앱")
 
-    movie_input = st.text_input("영화 제목 입력 (예: 인셉션, 어벤져스, 기생충)")
+    movie_name = st.text_input("영화 제목 입력")
 
-    if movie_input:
-        recs = recommend(movie_input)
-        if recs is None:
-            st.warning("데이터에 없는 영화입니다. 다른 제목으로 시도해 주세요.")
-        elif len(recs) == 0:
-            st.info("추천할 영화가 없습니다.")
-        else:
-            st.success(f"'{movie_input}'와 관련된 추천 영화들:")
-            for r in recs:
-                st.markdown(f"### {r['title']}")
-                st.write(f"감독: {r['director']}")
-                st.write(f"출연 배우: {', '.join(r['actors'])}")
-                st.write(f"줄거리: {r['summary']}")
-                st.write("---")
+    if movie_name:
+        results = search_movie(movie_name)
+        if not results:
+            st.warning("검색 결과가 없습니다.")
+            return
+
+        # 첫 번째 영화 선택
+        movie = results[0]
+        st.write(f"검색된 영화: {movie['title']} ({movie['release_date'][:4] if movie.get('release_date') else 'N/A'})")
+
+        credits = get_movie_credits(movie["id"])
+        director = None
+        for crew_member in credits.get("crew", []):
+            if crew_member["job"] == "Director":
+                director = crew_member
+                break
+
+        actors = credits.get("cast", [])[:5]  # 상위 5명 배우
+
+        st.write(f"감독: {director['name'] if director else '정보 없음'}")
+        st.write("주요 배우:")
+        for actor in actors:
+            st.write(f"- {actor['name']}")
+
+        # 감독 영화 추천
+        if director:
+            st.write(f"🎥 감독 {director['name']}의 다른 작품:")
+            director_credits = get_recommendations_by_person(director["id"])
+            director_movies = [m for m in director_credits.get("crew", []) if m["job"] == "Director" and m["id"] != movie["id"]]
+            for m in director_movies[:5]:
+                st.write(f"- {m['title']} ({m.get('release_date', '')[:4]})")
+
+        # 배우 영화 추천
+        st.write("🎭 주요 배우들의 다른 작품:")
+        for actor in actors:
+            st.write(f"배우 {actor['name']}의 작품:")
+            actor_credits = get_recommendations_by_person(actor["id"])
+            actor_movies = [m for m in actor_credits.get("cast", []) if m["id"] != movie["id"]]
+            for m in actor_movies[:3]:
+                st.write(f"- {m['title']} ({m.get('release_date', '')[:4]})")
 
 if __name__ == "__main__":
     main()
